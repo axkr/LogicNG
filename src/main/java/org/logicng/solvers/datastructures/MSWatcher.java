@@ -44,6 +44,8 @@
 
 package org.logicng.solvers.datastructures;
 
+import java.util.IdentityHashMap;
+
 /**
  * A watcher for clauses for MiniSAT-style solvers.
  * @version 1.0.1
@@ -92,5 +94,18 @@ public final class MSWatcher {
     @Override
     public String toString() {
         return String.format("MSWatcher{clause=%s, blocker=%d}", this.clause, this.blocker);
+    }
+
+    /**
+     * Clones the watcher with a given claus mapping for cloned clauses
+     * @param clauseMap a mapping from original clauses to cloned clauses
+     * @return the cloned watcher
+     */
+    public MSWatcher clone(final IdentityHashMap<MSClause, MSClause> clauseMap) {
+        final MSClause clonedClause = clauseMap.get(this.clause);
+        if (clonedClause == null) {
+            throw new IllegalStateException("Could not find a clause in cloning");
+        }
+        return new MSWatcher(clonedClause, this.blocker);
     }
 }

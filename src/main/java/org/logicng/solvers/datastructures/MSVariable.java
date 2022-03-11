@@ -46,6 +46,7 @@ package org.logicng.solvers.datastructures;
 
 import org.logicng.datastructures.Tristate;
 
+import java.util.IdentityHashMap;
 import java.util.Locale;
 
 /**
@@ -72,6 +73,23 @@ public final class MSVariable {
         this.activity = 0;
         this.polarity = polarity;
         this.decision = false;
+    }
+
+    /**
+     * Copy constructor with claus mapping
+     * @param other     the object to copy
+     * @param clauseMap a map for finding the cloned clause
+     */
+    private MSVariable(final MSVariable other, final IdentityHashMap<MSClause, MSClause> clauseMap) {
+        this.assignment = other.assignment;
+        this.level = other.level;
+        this.reason = clauseMap.get(other.reason);
+        if (this.reason == null) {
+            throw new IllegalStateException("Could not find a clause in cloning");
+        }
+        this.activity = other.activity;
+        this.polarity = other.polarity;
+        this.decision = other.decision;
     }
 
     /**
@@ -182,5 +200,14 @@ public final class MSVariable {
     public String toString() {
         return String.format(Locale.ENGLISH, "MSVariable{assignment=%s, level=%d, reason=%s, activity=%f, polarity=%s, decision=%s}",
                 this.assignment, this.level, this.reason, this.activity, this.polarity, this.decision);
+    }
+
+    /**
+     * Clones the variable with a given claus mapping for cloned clauses
+     * @param clauseMap a mapping from original clauses to cloned clauses
+     * @return the cloned variable
+     */
+    public MSVariable clone(final IdentityHashMap<MSClause, MSClause> clauseMap) {
+        return new MSVariable(this, clauseMap);
     }
 }

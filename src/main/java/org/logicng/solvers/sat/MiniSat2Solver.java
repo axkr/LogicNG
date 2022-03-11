@@ -57,6 +57,11 @@ import org.logicng.solvers.datastructures.MSClause;
 import org.logicng.solvers.datastructures.MSVariable;
 import org.logicng.solvers.datastructures.MSWatcher;
 
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.Stack;
+import java.util.TreeMap;
+
 /**
  * A solver based on MiniSAT 2.2.0.  If the incremental mode is deactivated, this version should behave exactly
  * like the C++ version.
@@ -68,7 +73,7 @@ import org.logicng.solvers.datastructures.MSWatcher;
  * @version 2.1.0
  * @since 1.0
  */
-public class MiniSat2Solver extends MiniSatStyleSolver {
+public class MiniSat2Solver extends MiniSatStyleSolver implements Cloneable {
 
     protected LNGIntVector unitClauses;
 
@@ -755,5 +760,113 @@ public class MiniSat2Solver extends MiniSatStyleSolver {
     protected void simpleRemoveClause(final MSClause c) {
         this.watches.get(not(c.get(0))).remove(new MSWatcher(c, c.get(1)));
         this.watches.get(not(c.get(1))).remove(new MSWatcher(c, c.get(0)));
+    }
+
+    /**
+     * Clones the whole solver
+     * @return the cloned solver
+     */
+    @Override
+    public MiniSat2Solver clone() {
+        final MiniSat2Solver clone = new MiniSat2Solver(this.config);
+        clone.ok = this.ok;
+        clone.qhead = this.qhead;
+
+        cloneClauses(clone);
+
+        clone.orderHeap = this.orderHeap.cloneWithSolver(clone);
+        clone.trail = new LNGIntVector(this.trail);
+        clone.trailLim = new LNGIntVector(this.trailLim);
+
+        clone.model = new LNGBooleanVector(this.model);
+        clone.conflict = new LNGIntVector(this.conflict);
+        clone.assumptions = new LNGIntVector(this.assumptions);
+        clone.seen = new LNGBooleanVector(this.seen);
+        clone.analyzeStack = new LNGIntVector(this.analyzeStack);
+        clone.analyzeToClear = new LNGIntVector(this.analyzeToClear);
+        clone.analyzeBtLevel = this.analyzeBtLevel;
+        clone.claInc = this.claInc;
+        clone.simpDBAssigns = this.simpDBAssigns;
+        clone.simpDBProps = this.simpDBProps;
+        clone.clausesLiterals = this.clausesLiterals;
+        clone.learntsLiterals = this.learntsLiterals;
+
+        clone.varDecay = this.varDecay;
+        clone.varInc = this.varInc;
+        clone.ccminMode = this.ccminMode;
+        clone.restartFirst = this.restartFirst;
+        clone.restartInc = this.restartInc;
+        clone.clauseDecay = this.clauseDecay;
+        clone.shouldRemoveSatsisfied = this.shouldRemoveSatsisfied;
+        clone.learntsizeFactor = this.learntsizeFactor;
+        clone.learntsizeInc = this.learntsizeInc;
+        clone.incremental = this.incremental;
+
+        clone.name2idx = new TreeMap<>();
+        clone.name2idx.putAll(this.name2idx);
+        clone.idx2name = new TreeMap<>();
+        clone.idx2name.putAll(this.idx2name);
+
+        //protected SATHandler handler; //TODO must be cloneable
+        clone.canceledByHandler = this.canceledByHandler;
+
+        clone.pgOriginalClauses = new LNGVector<>(this.pgOriginalClauses.size());
+        for (final ProofInformation pgOriginalClause : this.pgOriginalClauses) {
+            clone.pgOriginalClauses.push(new ProofInformation(new LNGIntVector(pgOriginalClause.clause), pgOriginalClause.proposition));
+        }
+        clone.pgProof = new LNGVector<>(this.pgProof.size());
+        for (final LNGIntVector lngIntVector : this.pgProof) {
+            clone.pgProof.push(new LNGIntVector(lngIntVector));
+        }
+
+        clone.backboneCandidates = new Stack<>();
+        clone.backboneCandidates.addAll(this.backboneCandidates);
+        clone.backboneAssumptions = new LNGIntVector(this.backboneAssumptions);
+        clone.backboneMap = new HashMap<>();
+        clone.backboneMap.putAll(this.backboneMap);
+        clone.computingBackbone = this.computingBackbone;
+
+        clone.selectionOrder = new LNGIntVector(this.selectionOrder);
+        clone.selectionOrderIdx = this.selectionOrderIdx;
+
+        clone.learntsizeAdjustConfl = this.learntsizeAdjustConfl;
+        clone.learntsizeAdjustCnt = this.learntsizeAdjustCnt;
+        clone.learntsizeAdjustStartConfl = this.learntsizeAdjustStartConfl;
+        clone.learntsizeAdjustInc = this.learntsizeAdjustInc;
+        clone.maxLearnts = this.maxLearnts;
+
+        clone.unitClauses = new LNGIntVector(this.unitClauses);
+
+        return clone;
+    }
+
+    private void cloneClauses(final MiniSat2Solver clone) {
+        final IdentityHashMap<MSClause, MSClause> clauseMap = new IdentityHashMap<>();
+        clone.clauses = new LNGVector<>(this.clauses.size());
+        for (final MSClause clause : this.clauses) {
+            final MSClause clonedClause = clause.clone();
+            clone.clauses.push(clonedClause);
+            clauseMap.put(clause, clonedClause);
+        }
+        clone.learnts = new LNGVector<>(this.learnts.size());
+        for (final MSClause clause : this.learnts) {
+            final MSClause clonedClause = clause.clone();
+            clone.learnts.push(clonedClause);
+            clauseMap.put(clause, clonedClause);
+        }
+
+        clone.watches = new LNGVector<>(this.watches.size());
+        for (final LNGVector<MSWatcher> watchers : this.watches) {
+            final LNGVector<MSWatcher> clonedWatchers = new LNGVector<>(watchers.size());
+            for (final MSWatcher watcher : watchers) {
+                clonedWatchers.push(watcher.clone(clauseMap));
+            }
+            clone.watches.push(clonedWatchers);
+        }
+
+        clone.vars = new LNGVector<>(this.vars.size());
+        for (final MSVariable var : this.vars) {
+            clone.vars.push(var.clone(clauseMap));
+        }
     }
 }

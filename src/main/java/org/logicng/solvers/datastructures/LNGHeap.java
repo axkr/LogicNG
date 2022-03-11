@@ -45,6 +45,7 @@
 package org.logicng.solvers.datastructures;
 
 import org.logicng.collections.LNGIntVector;
+import org.logicng.solvers.sat.MiniSat2Solver;
 import org.logicng.solvers.sat.MiniSatStyleSolver;
 
 /**
@@ -67,6 +68,17 @@ public final class LNGHeap {
         this.s = solver;
         this.heap = new LNGIntVector(1000);
         this.indices = new LNGIntVector(1000);
+    }
+
+    /**
+     * Copy constructor
+     * @param other the object to copy
+     * @param s     the solver to connect
+     */
+    private LNGHeap(final LNGHeap other, final MiniSat2Solver s) {
+        this.s = s;
+        this.heap = new LNGIntVector(other.heap);
+        this.indices = new LNGIntVector(other.indices);
     }
 
     /**
@@ -264,5 +276,14 @@ public final class LNGHeap {
         }
         sb.append("}");
         return sb.toString();
+    }
+
+    /**
+     * Clones this heap and connects it with the given solver
+     * @param solver the solver
+     * @return the cloned heap
+     */
+    public LNGHeap cloneWithSolver(final MiniSat2Solver solver) {
+        return new LNGHeap(this, solver);
     }
 }

@@ -53,7 +53,7 @@ import java.util.Comparator;
  * @version 2.0.0
  * @since 1.0
  */
-public final class MSClause {
+public final class MSClause implements Cloneable {
 
     /**
      * A comparator for clauses based on LBD and activity (used for the Glucose solver).
@@ -121,6 +121,23 @@ public final class MSClause {
         this.oneWatched = false;
         this.isAtMost = isAtMost;
         this.atMostWatchers = -1;
+    }
+
+    /**
+     * Copy constructor
+     * @param other the object to copy
+     */
+    private MSClause(final MSClause other) {
+        this.data = new LNGIntVector(other.data);
+        this.learnt = other.learnt;
+        this.isAtMost = other.isAtMost;
+        this.activity = other.activity;
+        this.szWithoutSelectors = other.szWithoutSelectors;
+        this.seen = other.seen;
+        this.lbd = other.lbd;
+        this.canBeDel = other.canBeDel;
+        this.oneWatched = other.oneWatched;
+        this.atMostWatchers = other.atMostWatchers;
     }
 
     /**
@@ -325,5 +342,10 @@ public final class MSClause {
         }
         sb.append("]}");
         return sb.toString();
+    }
+
+    @Override
+    public MSClause clone() {
+        return new MSClause(this);
     }
 }
