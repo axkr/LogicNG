@@ -83,9 +83,13 @@ public final class MSVariable {
     private MSVariable(final MSVariable other, final IdentityHashMap<MSClause, MSClause> clauseMap) {
         this.assignment = other.assignment;
         this.level = other.level;
-        this.reason = clauseMap.get(other.reason);
-        if (this.reason == null) {
-            throw new IllegalStateException("Could not find a clause in cloning");
+        if (other.reason == null) {
+            this.reason = null;
+        } else {
+            this.reason = clauseMap.get(other.reason);
+            if (this.reason == null) {
+                throw new IllegalStateException("Could not find a clause in cloning");
+            }
         }
         this.activity = other.activity;
         this.polarity = other.polarity;
