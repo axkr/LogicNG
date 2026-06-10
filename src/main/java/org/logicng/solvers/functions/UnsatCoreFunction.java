@@ -45,8 +45,9 @@ import org.logicng.solvers.sat.MiniCard;
 import org.logicng.solvers.sat.MiniSatStyleSolver;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -99,20 +100,19 @@ public final class UnsatCoreFunction implements SolverFunction<UNSATCore<Proposi
 
         final DRUPTrim trimmer = new DRUPTrim();
 
-        final Map<Formula, Proposition> clause2proposition = new HashMap<>();
+        final Map<ImmutableIntArrayWrapper, Proposition> clause2proposition = new LinkedHashMap<>();
         final LNGVector<LNGIntVector> clauses = new LNGVector<>(solver.underlyingSolver().pgOriginalClauses().size());
         for (final MiniSatStyleSolver.ProofInformation pi : solver.underlyingSolver().pgOriginalClauses()) {
             clauses.push(pi.clause());
-            final Formula clause = getFormulaForVector(solver, pi.clause());
             Proposition proposition = pi.proposition();
             if (proposition == null) {
-                proposition = new StandardProposition(clause);
+                proposition = new StandardProposition(getFormulaForVector(solver, pi.clause()));
             }
-            clause2proposition.put(clause, proposition);
+            clause2proposition.put(ImmutableIntArrayWrapper.of(pi.clause()), proposition);
         }
 
         if (containsEmptyClause(clauses)) {
-            final Proposition emptyClause = clause2proposition.get(solver.factory().falsum());
+            final Proposition emptyClause = clause2proposition.get(ImmutableIntArrayWrapper.empty());
             return new UNSATCore<>(Collections.singletonList(emptyClause), true);
         }
 
@@ -122,7 +122,7 @@ public final class UnsatCoreFunction implements SolverFunction<UNSATCore<Proposi
         }
         final LinkedHashSet<Proposition> propositions = new LinkedHashSet<>();
         for (final LNGIntVector vector : result.unsatCore()) {
-            propositions.add(clause2proposition.get(getFormulaForVector(solver, vector)));
+            propositions.add(clause2proposition.get(ImmutableIntArrayWrapper.of(vector)));
         }
         return new UNSATCore<>(new ArrayList<>(propositions), false);
     }
@@ -162,5 +162,52 @@ public final class UnsatCoreFunction implements SolverFunction<UNSATCore<Proposi
             literals.add(solver.factory().literal(varName, lit > 0));
         }
         return solver.factory().or(literals);
+    }
+
+    private static class ImmutableIntArrayWrapper {
+        private final int[] array;
+        private final int hashcode;
+
+        private ImmutableIntArrayWrapper(final int[] array) {
+            this.array = array;
+            this.hashcode = Arrays.hashCode(array);
+        }
+
+        public static ImmutableIntArrayWrapper of(final LNGIntVector vector) {
+            final int[] array = vector.toArray();
+            Arrays.sort(array);
+            return new ImmutableIntArrayWrapper(array);
+        }
+
+        public static ImmutableIntArrayWrapper empty() {
+            return new ImmutableIntArrayWrapper(new int[0]);
+        }
+
+        @Override
+        public int hashCode() {
+            return this.hashcode;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final ImmutableIntArrayWrapper that = (ImmutableIntArrayWrapper) o;
+            return Arrays.equals(this.array, that.array);
+        }
+
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < this.array.length; i++) {
+                sb.append(this.array[i]);
+                if (i != this.array.length - 1) {
+                    sb.append(", ");
+                }
+            }
+            sb.append("]");
+            return sb.toString();
+        }
     }
 }
