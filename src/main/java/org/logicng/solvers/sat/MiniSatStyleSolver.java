@@ -69,7 +69,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.Stack;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -248,8 +247,8 @@ public abstract class MiniSatStyleSolver {
         this.simpDBProps = 0;
         this.clausesLiterals = 0;
         this.learntsLiterals = 0;
-        this.name2idx = new TreeMap<>();
-        this.idx2name = new TreeMap<>();
+        this.name2idx = new HashMap<>();
+        this.idx2name = new HashMap<>();
         this.canceledByHandler = false;
         if (this.config.proofGeneration) {
             this.pgOriginalClauses = new LNGVector<>();
