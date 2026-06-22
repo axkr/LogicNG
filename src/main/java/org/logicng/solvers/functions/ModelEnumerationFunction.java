@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Consumer;
 
@@ -95,7 +96,8 @@ public final class ModelEnumerationFunction implements SolverFunction<List<Assig
         if (this.variables == null) {
             if (!solver.getConfig().isAuxiliaryVariablesInModels()) {
                 relevantIndices = new LNGIntVector();
-                for (final Map.Entry<String, Integer> entry : solver.underlyingSolver().getName2idx().entrySet()) {
+                TreeMap<String, Integer> solverVariables = new TreeMap<>(solver.underlyingSolver().getName2idx());
+                for (final Map.Entry<String, Integer> entry : solverVariables.entrySet()) {
                     if (solver.isRelevantVariable(entry.getKey())) {
                         relevantIndices.push(entry.getValue());
                     }
