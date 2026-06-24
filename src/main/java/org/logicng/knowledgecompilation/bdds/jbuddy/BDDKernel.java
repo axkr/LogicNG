@@ -1018,7 +1018,7 @@ public class BDDKernel {
     
     /**
      * Generates a flat integer array representation of the BDD rooted at the given node. The format
-     * encodes a Canonical Directed Acyclic Graph (DAG) with Complemented Edges, matching
+     * encodes a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Canonical Directed Acyclic Graph (DAG)</a> with Complemented Edges, matching
      * Wolfram languages internal BDD representations perfectly. 
      * 
      * @param root the root node index of the BDD
