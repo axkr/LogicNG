@@ -73,7 +73,7 @@ import java.util.TreeSet;
 
 /**
  * The super class for all MiniSAT-style solvers.
- * @version 2.1.0
+ * @version 2.6.2
  * @since 1.0
  */
 public abstract class MiniSatStyleSolver {

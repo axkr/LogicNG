@@ -55,7 +55,7 @@ import java.util.function.Consumer;
 
 /**
  * A solver function for computing the unsatisfiable core on the current solver.
- * @version 2.0.0
+ * @version 2.6.2
  * @since 2.0.0
  */
 public final class UnsatCoreFunction implements SolverFunction<UNSATCore<Proposition>> {

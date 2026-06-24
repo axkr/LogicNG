@@ -2,6 +2,14 @@
 
 LogicNG uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-06-xx
+
+### Changed
+
+- Performance improvements:
+  - Using `HashMap` instead of `TreeMap` for the name/index mappings in `MiniSatStyleSolver`. Note, this affects the returned map of the method `MiniSatStyleSolver#name2idx()`. If you rely on the ordering of the returned map, you should use a map that guarantees ordering. E.g. by converting the `HashMap` to a `TreeMap`.
+  - Prevent unnecessary formula creation in `UnsatCoreFunction`
+
 ## [2.6.1] - 2026-05-21
 
 ### Changed
