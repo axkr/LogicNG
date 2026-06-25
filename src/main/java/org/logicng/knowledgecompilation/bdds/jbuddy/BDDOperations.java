@@ -42,6 +42,8 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * A collection of operations on a BDD kernel.
@@ -143,6 +145,42 @@ public class BDDOperations {
                 return this.k.pushRef(this.k.makeNode(this.k.level(r), res, BDDKernel.BDD_FALSE));
             }
         }
+    }
+    
+    /**
+     * Generates a flat integer array representation of the BDD rooted at the given node. The format
+     * encodes a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Canonical Directed Acyclic Graph (DAG)</a> with Complemented Edges, matching
+     * Wolfram languages internal BDD representations. 
+     * 
+     * @param root the root node index of the BDD
+     * @param arity the number of variables (arity) of the boolean function
+     * @return the flat integer array representing the BDD
+     */
+    public int[] toROBDD(int root, int arity) {
+      if (root == BDDKernel.BDD_TRUE) {
+        return new int[] {arity};
+      }
+      if (root == BDDKernel.BDD_FALSE) {
+        return new int[] {-arity};
+      }
+
+      List<int[]> bottomUpNodes = new ArrayList<>();
+      Map<Integer, Integer> bddToMath = new HashMap<>();
+      Map<String, Integer> tripletMap = new HashMap<>();
+
+      int rootEdge;
+      rootEdge = traverseBottomUp(root, bottomUpNodes, bddToMath, tripletMap);
+     
+      int numNodes = bottomUpNodes.size();
+      int[] result = new int[1 + numNodes * 3];
+
+      // The first element is the Arity, inverted if the root edge is complemented
+      result[0] = rootEdge < 0 ? -arity : arity;
+
+      int[] oldToNew = new int[numNodes + 2];
+      reorderPreOrder(Math.abs(rootEdge), bottomUpNodes, oldToNew, result, 1);
+
+      return result;
     }
 
     /**
@@ -498,5 +536,103 @@ public class BDDOperations {
 
     private boolean isRelevant(final int r, final boolean followPathsToTrue) {
         return followPathsToTrue && !this.k.isZero(r) || !followPathsToTrue && !this.k.isOne(r);
+    }
+    
+
+    /**
+     * Recursively traverses the internal node arrays to construct the 1-based triplet layout. 
+     * It canonicalizes nodes by pushing complements downwards to guarantee the 
+     * True (High) edge is never complemented.
+     */
+    private int traverseBottomUp(int bddNode, List<int[]> nodesList,
+        Map<Integer, Integer> map, Map<String, Integer> tripletMap) {
+
+      if (bddNode == BDDKernel.BDD_TRUE) {
+        return 1;
+      }
+      if (bddNode ==  BDDKernel.BDD_FALSE) {
+        return -1;
+      }
+
+      Integer mapped = map.get(bddNode);
+      if (mapped != null) {
+        return mapped;
+      }
+
+      // Fetch values via reflection
+      int level =  k.level(bddNode);
+      int highNode = k.high(bddNode);
+      int lowNode = k.low(bddNode);
+
+      int trueEdge = traverseBottomUp(highNode, nodesList, map, tripletMap);
+      int falseEdge = traverseBottomUp(lowNode, nodesList, map, tripletMap);
+
+      int varIdx = k.level2var[level];
+
+      // Canonicalization Rule: The True (High) edge must NEVER be complemented (negative).
+      boolean invert = (trueEdge < 0);
+      if (invert) {
+        trueEdge = -trueEdge;
+        falseEdge = -falseEdge;
+      }
+
+      String key = varIdx + "," + trueEdge + "," + falseEdge;
+      Integer existingId = tripletMap.get(key);
+      int mathId;
+      if (existingId != null) {
+        mathId = existingId;
+      } else {
+        mathId = nodesList.size() + 2; // Offset by 2 to reserve 1 and -1 for terminals
+        nodesList.add(new int[] {varIdx, trueEdge, falseEdge});
+        tripletMap.put(key, mathId);
+      }
+
+      int resultEdge = invert ? -mathId : mathId;
+      map.put(bddNode, resultEdge);
+      return resultEdge;
+    }
+
+    /**
+     * Reformats the populated canonical DAG into a strict Pre-Order (Top-Down) indexing so that the
+     * root always occupies position 1, mapping directly to Wolfram languages flat array layout.
+     */
+    private int reorderPreOrder(int oldId, List<int[]> bottomUpNodes, int[] oldToNew,
+        int[] result, int currentNewId) {
+      if (oldToNew[oldId] != 0) {
+        return currentNewId;
+      }
+
+      int newId = currentNewId++;
+      oldToNew[oldId] = newId;
+
+      int[] triplet = bottomUpNodes.get(oldId - 2); // oldId starts at 2
+      int base = 1 + (newId - 1) * 3;
+      result[base] = triplet[0]; // var
+
+      int high = triplet[1];
+      int absHigh = Math.abs(high);
+      if (absHigh > 1) {
+        currentNewId = reorderPreOrder(absHigh, bottomUpNodes, oldToNew, result, currentNewId);
+      }
+
+      int low = triplet[2];
+      int absLow = Math.abs(low);
+      if (absLow > 1) {
+        currentNewId = reorderPreOrder(absLow, bottomUpNodes, oldToNew, result, currentNewId);
+      }
+
+      int newHigh = absHigh > 1 ? oldToNew[absHigh] : absHigh;
+      if (high < 0) {
+        newHigh = -newHigh;
+      }
+      result[base + 1] = newHigh;
+
+      int newLow = absLow > 1 ? oldToNew[absLow] : absLow;
+      if (low < 0) {
+        newLow = -newLow;
+      }
+      result[base + 2] = newLow;
+
+      return currentNewId;
     }
 }
