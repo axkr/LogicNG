@@ -53,7 +53,7 @@ public class ROBDDTest {
       final int[] fromArray = new int[] {-3, 0, 1, -2, 1, 3, -1, 2, 1, -1};
       BDD bdd = ROBDDReader.read(fromArray, f);
       final int[] toArray = ROBDDWriter.write(bdd);
-      assertEquals(fromArray, toArray);
+      assertArrayEquals(fromArray, toArray);
     }
 
 }

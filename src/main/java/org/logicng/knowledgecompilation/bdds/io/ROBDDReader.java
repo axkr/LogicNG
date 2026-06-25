@@ -90,29 +90,27 @@ public class ROBDDReader {
    */
   public static BDD read(int[] list, FormulaFactory factory) {
     int first = list[0];
-    if (first != Integer.MIN_VALUE) {
-      // The number of nodes is inferred from the remaining array length
-      int numNodes = (list.length - 1) / 3;
+    // The number of nodes is inferred from the remaining array length
+    int numNodes = (list.length - 1) / 3;
 
-      // Validate if format represents valid node triplets correctly
-      if (numNodes * 3 + 1 == list.length) {
-        // Handle trivial true/false root BDDs mapping straight to terminals
-        if (list.length == 1) {
-          if (first >= 0) {
-            return factory.verum().bdd();
-          } else {
-            return factory.falsum().bdd();
-          }
+    // Validate if format represents valid node triplets correctly
+    if (numNodes * 3 + 1 == list.length) {
+      // Handle trivial true/false root BDDs mapping straight to terminals
+      if (list.length == 1) {
+        if (first >= 0) {
+          return factory.verum().bdd();
+        } else {
+          return factory.falsum().bdd();
         }
+      }
 
-        ROBDDReader parser = new ROBDDReader(list, numNodes, factory);
-        Formula rootFormula = parser.parseNode(1);
-        if (rootFormula != null) {
-          if (first < 0) {
-            rootFormula = factory.not(rootFormula);
-          }
-          return rootFormula.bdd();
+      ROBDDReader parser = new ROBDDReader(list, numNodes, factory);
+      Formula rootFormula = parser.parseNode(1);
+      if (rootFormula != null) {
+        if (first < 0) {
+          rootFormula = factory.not(rootFormula);
         }
+        return rootFormula.bdd();
       }
     }
     return null;
