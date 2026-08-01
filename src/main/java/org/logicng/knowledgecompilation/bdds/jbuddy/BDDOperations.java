@@ -39,7 +39,7 @@ import org.logicng.formulas.FormulaFactory;
 import org.logicng.formulas.Variable;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
+import java.util.ArrayList; 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -149,38 +149,29 @@ public class BDDOperations {
     
     /**
      * Generates a flat integer array representation of the BDD rooted at the given node. The format
-     * encodes a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Canonical Directed Acyclic Graph (DAG)</a> with Complemented Edges, matching
-     * Wolfram languages internal BDD representations. 
-     * 
-     * @param root the root node index of the BDD
+     * encodes a canonical directed acyclic graph with complemented edges, matching the internal BDD
+     * representation of the Wolfram language.
+     * @param root  the root node index of the BDD
      * @param arity the number of variables (arity) of the boolean function
      * @return the flat integer array representing the BDD
      */
-    public int[] toROBDD(int root, int arity) {
-      if (root == BDDKernel.BDD_TRUE) {
-        return new int[] {arity};
-      }
-      if (root == BDDKernel.BDD_FALSE) {
-        return new int[] {-arity};
-      }
-
-      List<int[]> bottomUpNodes = new ArrayList<>();
-      Map<Integer, Integer> bddToMath = new HashMap<>();
-      Map<String, Integer> tripletMap = new HashMap<>();
-
-      int rootEdge;
-      rootEdge = traverseBottomUp(root, bottomUpNodes, bddToMath, tripletMap);
-     
-      int numNodes = bottomUpNodes.size();
-      int[] result = new int[1 + numNodes * 3];
-
-      // The first element is the Arity, inverted if the root edge is complemented
-      result[0] = rootEdge < 0 ? -arity : arity;
-
-      int[] oldToNew = new int[numNodes + 2];
-      reorderPreOrder(Math.abs(rootEdge), bottomUpNodes, oldToNew, result, 1);
-
-      return result;
+    public int[] toArrayRepresentation(final int root, final int arity) {
+        if (root == BDDKernel.BDD_TRUE) {
+            return new int[]{arity};
+        }
+        if (root == BDDKernel.BDD_FALSE) {
+            return new int[]{-arity};
+        }
+        final List<int[]> bottomUpNodes = new ArrayList<>();
+        final Map<Integer, Integer> nodeToEdge = new HashMap<>();
+        final Map<NodeKey, Integer> uniqueNodes = new HashMap<>();
+        final int rootEdge = traverseBottomUp(root, bottomUpNodes, nodeToEdge, uniqueNodes);
+        final int numNodes = bottomUpNodes.size();
+        final int[] result = new int[1 + numNodes * 3];
+        result[0] = rootEdge < 0 ? -arity : arity;
+        final int[] oldToNew = new int[numNodes + 2];
+        reorderPreOrder(Math.abs(rootEdge), bottomUpNodes, oldToNew, result, 1);
+        return result;
     }
 
     /**
@@ -539,100 +530,107 @@ public class BDDOperations {
     }
     
 
-    /**
-     * Recursively traverses the internal node arrays to construct the 1-based triplet layout. 
-     * It canonicalizes nodes by pushing complements downwards to guarantee the 
-     * True (High) edge is never complemented.
-     */
-    private int traverseBottomUp(int bddNode, List<int[]> nodesList,
-        Map<Integer, Integer> map, Map<String, Integer> tripletMap) {
-
-      if (bddNode == BDDKernel.BDD_TRUE) {
-        return 1;
-      }
-      if (bddNode ==  BDDKernel.BDD_FALSE) {
-        return -1;
-      }
-
-      Integer mapped = map.get(bddNode);
-      if (mapped != null) {
-        return mapped;
-      }
-
-      // Fetch values via reflection
-      int level =  k.level(bddNode);
-      int highNode = k.high(bddNode);
-      int lowNode = k.low(bddNode);
-
-      int trueEdge = traverseBottomUp(highNode, nodesList, map, tripletMap);
-      int falseEdge = traverseBottomUp(lowNode, nodesList, map, tripletMap);
-
-      int varIdx = k.level2var[level];
-
-      // Canonicalization Rule: The True (High) edge must NEVER be complemented (negative).
-      boolean invert = (trueEdge < 0);
-      if (invert) {
-        trueEdge = -trueEdge;
-        falseEdge = -falseEdge;
-      }
-
-      String key = varIdx + "," + trueEdge + "," + falseEdge;
-      Integer existingId = tripletMap.get(key);
-      int mathId;
-      if (existingId != null) {
-        mathId = existingId;
-      } else {
-        mathId = nodesList.size() + 2; // Offset by 2 to reserve 1 and -1 for terminals
-        nodesList.add(new int[] {varIdx, trueEdge, falseEdge});
-        tripletMap.put(key, mathId);
-      }
-
-      int resultEdge = invert ? -mathId : mathId;
-      map.put(bddNode, resultEdge);
-      return resultEdge;
+    private int traverseBottomUp(final int bddNode, final List<int[]> nodesList,
+                                 final Map<Integer, Integer> nodeToEdge, final Map<NodeKey, Integer> uniqueNodes) {
+        if (bddNode == BDDKernel.BDD_TRUE) {
+            return 1;
+        }
+        if (bddNode == BDDKernel.BDD_FALSE) {
+            return -1;
+        }
+        final Integer mapped = nodeToEdge.get(bddNode);
+        if (mapped != null) {
+            return mapped;
+        }
+        final int level = k.level(bddNode);
+        final int highNode = k.high(bddNode);
+        final int lowNode = k.low(bddNode);
+        int trueEdge = traverseBottomUp(highNode, nodesList, nodeToEdge, uniqueNodes);
+        int falseEdge = traverseBottomUp(lowNode, nodesList, nodeToEdge, uniqueNodes);
+        final int varIdx = k.level2var[level];
+        final boolean invert = trueEdge < 0;
+        if (invert) {
+            trueEdge = -trueEdge;
+            falseEdge = -falseEdge;
+        }
+        final NodeKey key = new NodeKey(varIdx, trueEdge, falseEdge);
+        final Integer existingId = uniqueNodes.get(key);
+        final int mathId;
+        if (existingId != null) {
+            mathId = existingId;
+        } else {
+            mathId = nodesList.size() + 2;
+            nodesList.add(new int[]{varIdx, trueEdge, falseEdge});
+            uniqueNodes.put(key, mathId);
+        }
+        final int resultEdge = invert ? -mathId : mathId;
+        nodeToEdge.put(bddNode, resultEdge);
+        return resultEdge;
     }
 
-    /**
-     * Reformats the populated canonical DAG into a strict Pre-Order (Top-Down) indexing so that the
-     * root always occupies position 1, mapping directly to Wolfram languages flat array layout.
-     */
-    private int reorderPreOrder(int oldId, List<int[]> bottomUpNodes, int[] oldToNew,
-        int[] result, int currentNewId) {
-      if (oldToNew[oldId] != 0) {
+    private int reorderPreOrder(final int oldId, final List<int[]> bottomUpNodes, final int[] oldToNew,
+                                final int[] result, final int startNewId) {
+        if (oldToNew[oldId] != 0) {
+            return startNewId;
+        }
+        int currentNewId = startNewId;
+        final int newId = currentNewId++;
+        oldToNew[oldId] = newId;
+        final int[] triplet = bottomUpNodes.get(oldId - 2);
+        final int base = 1 + (newId - 1) * 3;
+        result[base] = triplet[0];
+        final int high = triplet[1];
+        final int absHigh = Math.abs(high);
+        if (absHigh > 1) {
+            currentNewId = reorderPreOrder(absHigh, bottomUpNodes, oldToNew, result, currentNewId);
+        }
+        final int low = triplet[2];
+        final int absLow = Math.abs(low);
+        if (absLow > 1) {
+            currentNewId = reorderPreOrder(absLow, bottomUpNodes, oldToNew, result, currentNewId);
+        }
+        int newHigh = absHigh > 1 ? oldToNew[absHigh] : absHigh;
+        if (high < 0) {
+            newHigh = -newHigh;
+        }
+        result[base + 1] = newHigh;
+        int newLow = absLow > 1 ? oldToNew[absLow] : absLow;
+        if (low < 0) {
+            newLow = -newLow;
+        }
+        result[base + 2] = newLow;
         return currentNewId;
-      }
+    }
 
-      int newId = currentNewId++;
-      oldToNew[oldId] = newId;
+    private static final class NodeKey {
+        private final int var;
+        private final int high;
+        private final int low;
 
-      int[] triplet = bottomUpNodes.get(oldId - 2); // oldId starts at 2
-      int base = 1 + (newId - 1) * 3;
-      result[base] = triplet[0]; // var
+        private NodeKey(final int var, final int high, final int low) {
+            this.var = var;
+            this.high = high;
+            this.low = low;
+        }
 
-      int high = triplet[1];
-      int absHigh = Math.abs(high);
-      if (absHigh > 1) {
-        currentNewId = reorderPreOrder(absHigh, bottomUpNodes, oldToNew, result, currentNewId);
-      }
+        @Override
+        public boolean equals(final Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof NodeKey)) {
+                return false;
+            }
+            final NodeKey key = (NodeKey) other;
+            return var == key.var && high == key.high && low == key.low;
+        }
 
-      int low = triplet[2];
-      int absLow = Math.abs(low);
-      if (absLow > 1) {
-        currentNewId = reorderPreOrder(absLow, bottomUpNodes, oldToNew, result, currentNewId);
-      }
-
-      int newHigh = absHigh > 1 ? oldToNew[absHigh] : absHigh;
-      if (high < 0) {
-        newHigh = -newHigh;
-      }
-      result[base + 1] = newHigh;
-
-      int newLow = absLow > 1 ? oldToNew[absLow] : absLow;
-      if (low < 0) {
-        newLow = -newLow;
-      }
-      result[base + 2] = newLow;
-
-      return currentNewId;
+        @Override
+        public int hashCode() {
+            int result = var;
+            result = 31 * result + high;
+            result = 31 * result + low;
+            return result;
+        }
     }
 }
